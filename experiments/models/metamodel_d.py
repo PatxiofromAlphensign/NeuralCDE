@@ -8,9 +8,9 @@ def normalizer(times, x):
 
 def GetNonzeroTensor(t, model):
     ts = model._forward(t) 
-    while len(ts.shape) < 2:
+    while ts.shape[0] < 1:
         ts = model._forward(t) 
-        return ts
+    return ts
 
 class init_model(NeuralCDE):
     def __init__(self):
@@ -42,6 +42,7 @@ class test(init_model):
 
     def forward(self, x):
         x = self.l1(x)
+        self.weights = self.l1.weight
         return x
 
 
@@ -49,7 +50,11 @@ def main():
     x = torch.Tensor(4)
     init= init_model()
     xp = init._forward(x)
-    GetNonzeroTensor(xp, init)
-    test(xp.shape[0], 4)
+    xp = GetNonzeroTensor(x, init)
+    t = test(xp.shape[0], 4)
+    t.forward(xp)
+    print(t.weights)
 
-main()
+if __name__ == "__main__":
+
+    main()

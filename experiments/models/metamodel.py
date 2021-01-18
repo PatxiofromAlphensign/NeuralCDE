@@ -50,6 +50,23 @@ class NeuralCDE(torch.nn.Module):
         return "input_channels={}, hidden_channels={}, output_channels={}, initial={}" \
                "".format(self.input_channels, self.hidden_channels, self.output_channels, self.initial)
 
+    def flx_forward(self, times, coeffs, final_index):
+        # more flexible forward implementing the same alogirhtm as in `forward`
+
+        if len(coeffs) == 4:
+            coeff, _, _, _ = coeffs
+        else :
+            coeff = coeffs[-1]
+
+        batch_dims = coeff.shape[:-2]
+        z0 = torch.zeros(*batch_dims, self.hidden_channels, dtype=coeff.dtype, device=coeff.device)
+        cubic_spline = controldiffeq.NaturalCubicSpline(times, coeffs)
+
+        assert coeff[:-4].shape == final_index.shape
+
+        return cubic_spline.evaluate_1d(times[0])
+
+
     def forward(self, times, coeffs, final_index, z0=None, stream=False, **kwargs):
         """
         Arguments:
@@ -70,14 +87,23 @@ class NeuralCDE(torch.nn.Module):
         """
 
         # Extract the sizes of the batch dimensions from the coefficients
-        coeff, _, _, _ = coeffs
+        if len(coeffs) == 4:
+            coeff, _, _, _ = coeffs
+        else :
+            coeff = coeffs[-1]
+
         batch_dims = coeff.shape[:-2]
+        z0 = torch.zeros(*batch_dims, self.hidden_channels, dtype=coeff.dtype, device=coeff.device)
+        cubic_spline = controldiffeq.NaturalCubicSpline(times, coeffs)
+
+        print(coeff[:-4].shape == final_index.shape) 
+        cubic_spline.evaluate_1d(times[0])
+
         if not stream:
             assert batch_dims == final_index.shape, "coeff.shape[:-2] must be the same as final_index.shape. " \
                                                     "coeff.shape[:-2]={}, final_index.shape={}" \
                                                     "".format(batch_dims, final_index.shape)
 
-        cubic_spline = controldiffeq.NaturalCubicSpline(times, coeffs)
 
         if z0 is None:
             assert self.initial, "Was not expecting to be given no value of z0."
